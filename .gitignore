@@ -1,0 +1,12 @@
+bin/
+dist/
+webapp/src/manifest.ts
+
+# Mac
+.DS_Store
+
+# Jetbrains
+.idea/
+
+# VS Code
+.vscode
