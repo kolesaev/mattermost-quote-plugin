@@ -7,14 +7,10 @@ A Mattermost plugin that adds quote reply functionality with user mentions.
 - Adds a "Quote" button to the post menu (next to the Reply button)
 - Quotes messages in the following format:
   ```
-  @username
-  > ___
-  > Quoted message text
-  > with line breaks
+  @username - <link to post>
 
-  ___
-  
-  
+
+  Your text  
   ```
 - Automatically focuses the input field after inserting the quote
 - Works in both main channel and threads

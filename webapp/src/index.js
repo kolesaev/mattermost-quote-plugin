@@ -51,58 +51,58 @@ export default class Plugin {
                 // Получаем username из состояния пользователей
                 const users = state.entities?.users?.profiles;
                 const user = users?.[post.user_id];
-                const username = user?.username || 'user';
+                const username = user?.username || 'unknown';
                 
-                // Удаляем ВЕСЬ предыдущий блок цитаты
-                const cleanMessage = this.removePreviousQuoteBlock(post.message);
-                
-                // Форматируем сообщение с > перед каждой строкой
-                const formattedMessage = this.formatMessageWithQuotes(cleanMessage);
+                // Получаем прямую ссылку на сообщение
+                const permalink = this.getPermalink(postId);
+                const quoteLink = `@${username} - ${permalink}`;
                 
                 // Находим поле ввода (пробуем thread потом main)
                 const textbox = this.getThreadTextbox() || this.getMainTextbox();
                 
                 if (textbox) {
-                    textbox.value = `@${username}\n> ___\n${formattedMessage}\n\n___\n\n`;
+                    // Сохраняем текущее значение, если есть
+                    const currentValue = textbox.value;
+                    const newValue = currentValue 
+                        ? quoteLink + '\n\n\n' + currentValue
+                        : quoteLink + '\n\n\n';
+                    
+                    textbox.value = newValue;
                     textbox.focus();
+                    
+                    // Перемещаем курсор в конец для удобства набора ответа
+                    textbox.setSelectionRange(newValue.length, newValue.length);
                 }
             } else {
-                this.quoteViaDOM();
+                this.quoteViaDOM(postId);
             }
         } catch (error) {
-            this.quoteViaDOM();
+            console.error('Error quoting post:', error);
+            this.quoteViaDOM(postId);
         }
     }
 
-    formatMessageWithQuotes(message) {
-        if (!message) return '';
+    getPermalink(postId) {
+        // Получаем базовый URL (протокол + хост)
+        const baseUrl = window.location.origin;
         
-        const lines = message.split('\n');
-        const quotedLines = lines.map(line => {
-            if (line.trim() === '') {
-                return '>';
-            } else {
-                return `> ${line}`;
-            }
-        });
+        // Получаем название команды из пути URL (первый сегмент после слеша)
+        const pathParts = window.location.pathname.split('/');
+        const teamName = pathParts[1] || ''; // В вашем случае это 'calypso-group'
         
-        return quotedLines.join('\n');
-    }
-
-    removePreviousQuoteBlock(message) {
-        if (!message) return message;
-        
-        const quoteBlockRegex = /@\w+\n> ___[\s\S]*?___\n\n/g;
-        let cleanMessage = message.replace(quoteBlockRegex, '').trim();
-        
-        return cleanMessage;
+        if (teamName) {
+            return `${baseUrl}/${teamName}/pl/${postId}`;
+        } else {
+            return `${baseUrl}/pl/${postId}`;
+        }
     }
 
     getMainTextbox() {
         return document.getElementById('post_textbox') || 
                document.querySelector('[data-testid="post_textbox"]') ||
                document.querySelector('.post-create__textarea textarea') ||
-               document.querySelector('.channel-textarea textarea');
+               document.querySelector('.channel-textarea textarea') ||
+               document.querySelector('textarea[aria-label*="write to"]');
     }
 
     getThreadTextbox() {
@@ -115,25 +115,38 @@ export default class Plugin {
                document.querySelector('[placeholder*="Reply"]');
     }
 
-    quoteViaDOM() {
-        // Fallback логика
-        const postElement = document.querySelector('.post:hover, .post.focused');
+    quoteViaDOM(postId) {
+        // Fallback логика через DOM
+        const postElement = postId 
+            ? document.querySelector(`[data-post-id="${postId}"], #post_${postId}`)
+            : document.querySelector('.post--hovered, .post--focused, .post:hover');
         
         if (postElement) {
-            const messageElement = postElement.querySelector('.post-message__text, [data-testid*="message"]');
-            const usernameElement = postElement.querySelector('.user-name, [data-testid*="username"]');
+            // Получаем username из элемента
+            const usernameElement = postElement.querySelector('.user-popover, [data-testid="postHeader"] button');
+            const username = usernameElement?.textContent?.trim() || 'user';
             
-            const message = messageElement?.textContent || 'No message found';
-            const username = usernameElement?.textContent || 'user';
+            // Получаем ID поста если не передан
+            const actualPostId = postId || 
+                                postElement.getAttribute('data-post-id') || 
+                                postElement.id?.replace('post_', '');
             
-            const cleanMessage = this.removePreviousQuoteBlock(message);
-            const formattedMessage = this.formatMessageWithQuotes(cleanMessage);
-            
-            const textbox = this.getThreadTextbox() || this.getMainTextbox();
-            
-            if (textbox) {
-                textbox.value = `@${username}\n> ___\n${formattedMessage}\n\n___\n\n`;
-                textbox.focus();
+            if (actualPostId) {
+                const permalink = this.getPermalink(actualPostId);
+                const quoteLink = `@${username} - ${permalink}`;
+                
+                const textbox = this.getThreadTextbox() || this.getMainTextbox();
+                
+                if (textbox) {
+                    const currentValue = textbox.value;
+                    const newValue = currentValue 
+                        ? quoteLink + '\n\n\n' + currentValue
+                        : quoteLink + '\n\n\n';
+                    
+                    textbox.value = newValue;
+                    textbox.focus();
+                    textbox.setSelectionRange(newValue.length, newValue.length);
+                }
             }
         }
     }
